@@ -1,0 +1,123 @@
+#-----------------------------------fetching list of users from postgres------------------------------------------------
+import psycopg2
+from psycopg2.extras import NamedTupleCursor
+import json
+import collections
+import requests
+import time
+import json
+import unicodedata
+sisense_username = yourid #replace with an admin user's user name
+sisense_password = your password #replace with an admin user's password
+Sisense_url = your url #replace with your Sisense url
+cube = your cube name #change to the relevant cube
+table = your table name #change to the relevant table
+column = your column on which security rule should be applied #change to the relevant column
+
+
+#this should be the user id 
+user_id='34586'
+
+# defining all functions
+
+def get_token(sisense_username, sisense_password):
+    url = sisense_url + "/api/v1/authentication/login"
+
+    data2 = "username=" + sisense_username.replace('@', '%40') + "&password=" + sisense_password
+    headers = {
+        'content-type': "application/x-www-form-urlencoded"
+    }
+
+    req = requests.request("POST", url, headers=headers, data=data2)
+    auth_tok = req.json()["access_token"]
+    return auth_tok
+
+def check_users(user):
+
+    auth_token = get_token(sisense_username, sisense_password)
+    
+    headers = {
+        "authorization": "Bearer " + auth_token,
+        "accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    users_url = sisense_url + '/api/users'
+    search_params = {
+        'search': user # user to search
+    }
+    search_users_res=requests.get(users_url, params=search_params, headers=headers)
+
+    return(search_users_res.text)
+
+def add_user():
+    auth_token = get_token(sisense_username, sisense_password)
+    
+    headers = {
+        "authorization": "Bearer " + auth_token,
+        "accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    data1=j
+    
+    req = requests.request("POST", sisense_url + "/api/v1/users/bulk", headers=headers,data=data1)
+    
+
+def add_security_rule():
+    auth_token = get_token(sisense_username, sisense_password)
+    auth_token = "Bearer " + auth_token
+    headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Authorization': auth_token
+    }
+    response = requests.request("POST", url, data=payload, headers=headers)
+    print ('added security rule')
+
+        
+# checking if user already exists    
+user_result=json.loads(check_users('sg1_'+user_id+'@bi.com'))
+print((user_result))
+if(len(user_result)==0):   
+#-----------------------------------adding users to sisense------------------------------------------------
+ 
+    # Converting query to JSON
+    objects_list = []
+    print('adding new user')
+    d = collections.OrderedDict()
+    d['email'] = 'sg1_'+user_id+'@bi.com'
+    d['username'] = row.user_id
+    d['rolename'] = 'viewer'
+    d['active']='true'
+    d['groups']=['5dd64d902d039310cc24ca9b']
+    d['password']='password@123'
+    objects_list.append(d)
+    j = json.dumps(objects_list)
+    myConnection.close()
+    add_user();
+
+    
+#-----------------------------------adding security rules to sisense------------------------------------------------
+     
+    url = Sisense_url+'/api/v1/users?email='+'sg1_'+user_id+'@bi.com'.replace('@', '%40')
+    response = requests.request("GET", url, headers=headers)
+    #print(response.json()[0]["email"])
+    if (response.status_code == 200 and len(response.json()) > 0):
+        user = {"datasecurity": user_id,"userId": response.json()[0]["_id"]}
+
+        url = Sisense_url+'/api/elasticubes/datasecurity'
+
+        payload = [{
+        "server": "localhost",
+        "elasticube": cube,
+        "table": table,
+        "column": column,
+        "datatype": "text",
+        "members": [user["datasecurity"]],
+        "shares": [{
+        "party": user["userId"],
+        "type": "user"
+        }],
+        }]
+
+        payload = json.dumps(payload)
+    add_security_rule();
